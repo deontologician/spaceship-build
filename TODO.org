@@ -1,0 +1,19 @@
+
+* Todo [0/4]:
+ - [ ] Add a commandline that allows you to assemble the mech
+ - [ ] Allow networks of cabling, with tree structure, rather than point to point
+ - [ ] Respect bandwidth limitations of cables etc
+ - [ ] Enforce that cabling can't be connected while physical attachment is active
+ - [ ] Have a broadcast level that you attach terminal to [0/4]
+   - [ ] All cable attachments etc would broadcast here
+   - [ ] All broadcasts of errors or overloads happen here
+   - [ ] Must attach to things that you want messages from, unless
+     they are already connected to the broadcast port of something you
+     are attached to already.
+   - [ ] Must disconnect the diagnostic computer from the mech before moving it
+ - [ ] Add damage per component.
+ - [ ] Attachments that exceed weight tolerance become damaged or unuseable
+ - [ ] Be able to repair physical components (this may be long term)
+ - [ ] Need a concept of "free-standing" vs. supported when
+   determining if an attachment is under weight tolerances
+ - [ ] ensure that broadcasts over a bus aren't duplicated by determining the connected components

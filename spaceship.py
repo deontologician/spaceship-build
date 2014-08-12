@@ -15,13 +15,25 @@ class BusMessage:
         self.size = size
 
 
+def basic_subscriber(msg):
+    '''Simple subscriber that just prints out the message received'''
+    print('[{}]@{}:\n\t{}'.format(msg.topic, msg.sender, msg.message))
+
 class Bus:
     '''Data connections between components.'''
 
     def __init__(self, name):
         self.name = name
+        self.id = uuid.uuid4()
         self.parent = None
         self.children = []
+        self.subscribers = {}
+
+    def subscribe(self, topic_filter, subscriber):
+        '''Adds a subscriber. Any time a message comes through this
+        Bus, if the topic_filter matches the topic, the subscriber
+        will be called with the message'''
+        self.subscribers[topic_filter] = subscriber
 
     @property
     def child_count(self):
@@ -29,6 +41,8 @@ class Bus:
 
     @property
     def lineage(self):
+        '''Returns a list of all ancestor Buses up with the last
+        element being the root'''
         obj = self
         while obj.parent:
             yield obj.parent
@@ -36,24 +50,27 @@ class Bus:
 
     @property
     def path(self):
+        '''Returns the path of the current bus in the hierarchy'''
         path = pathlib.PurePosixPath(self.name)
         for ancestor in self.lineage:
             path = ancestor.name / path
         return path
 
     def _push(self, msg):
-        for child in self.children:
-            if msg.sender != child.path:
-                child._push(msg)
+        '''Push a message to a parent and send it to any interested
+        subscribers
+        '''
         if self.parent is not None:
             self.parent._push(msg)
+        #send to attached terminal
+        for topic_filter, subscriber in self.subscribers.items():
+            if msg.topic.startswith(topic_filter):
+                subscriber(msg)
 
     def broadcast(self, topic, fmt, *args, **kwargs):
         msg = fmt.format(*args, **kwargs)
         bus_msg = BusMessage(topic, msg, self.path)
-        if self.parent is None:
-            print('[{}]@{}:\n\t{}'.format(topic, self.path, msg))
-            
+        self._push(bus_msg)
 
     def add_child(self, child):
         self.children.append(child)
@@ -230,6 +247,23 @@ class Terminal:
     def broadcast(self, topic, message):
         for bus in self.buses:
             bus.broadcast(topic, message)
+
+def bus_test():
+    '''Shows how Buses can be attached, and subscribers put in'''
+    a, b, c, d, e, f, g = (Bus(x) for x in 'abcdefg')
+    a.attach(b)
+    b.attach(c)
+    b.attach(d)
+    e.attach(f)
+    e.attach(g)
+    a.attach(e)
+    print('All the bus paths:')
+    print(a, b, c, d, e, f, g)
+    a.subscribe('cabling.error', basic_subscriber)
+    a.subscribe('cabling.info', basic_subscriber)
+    g.broadcast('cabling.error.abort', 'This bus got aborted!') # should print
+    f.broadcast('cabling.info.uhok', 'I have a message') # should print
+    f.broadcast('some.other.topic', 'This should not print') # should not print
 
 
 def main():

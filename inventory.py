@@ -3,7 +3,7 @@
 import spaceship
 
 class Inventory:
-    intro: 'This is the inventory. You may store and retrieve items.'
+    '''This is the inventory. You may store and retrieve items.'''
 
     def __init__(self):
         self._inv = {}

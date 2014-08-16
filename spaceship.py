@@ -5,19 +5,17 @@ from collections import namedtuple
 from io import StringIO
 
 
-class BusMessage:
-    __slots__ = ('topic', 'message', 'sender', 'size')
-
-    def __init__(self, topic, message, sender, size=0):
-        self.topic = topic
-        self.message = message
-        self.sender = sender
-        self.size = size
-
+BusMessage = namedtuple('BusMessage', 'topic message sender size')
 
 def basic_subscriber(msg):
     '''Simple subscriber that just prints out the message received'''
     print('[{}]@{}:\n\t{}'.format(msg.topic, msg.sender, msg.message))
+
+
+def is_prefix(a, b):
+    '''Returns whether a is a prefix of path b'''
+    return b.as_posix().startswith(a.as_posix())
+
 
 class Bus:
     '''Data connections between components.'''
@@ -60,16 +58,23 @@ class Bus:
         '''Push a message to a parent and send it to any interested
         subscribers
         '''
-        if self.parent is not None:
-            self.parent._push(msg)
-        #send to attached terminal
+        #send to subscribers
         for topic_filter, subscriber in self.subscribers.items():
             if msg.topic.startswith(topic_filter):
                 subscriber(msg)
 
+        # broadcast to children
+        for child in self.children:
+            if not is_prefix(child.path, msg.sender):
+                child._push(msg)
+
+        # broadcast to parents
+        if self.parent is not None and is_prefix(self.path, msg.sender):
+            self.parent._push(msg)
+
     def broadcast(self, topic, fmt, *args, **kwargs):
         msg = fmt.format(*args, **kwargs)
-        bus_msg = BusMessage(topic, msg, self.path)
+        bus_msg = BusMessage(topic, msg, self.path, size=0)
         self._push(bus_msg)
 
     def add_child(self, child):
@@ -221,7 +226,7 @@ class Attachment:
     def detach(self):
         self.attachee = None
 
-    
+
 class MediumAttachment(Attachment):
     weight_tolerance = 50
 
@@ -264,6 +269,23 @@ def bus_test():
     g.broadcast('cabling.error.abort', 'This bus got aborted!') # should print
     f.broadcast('cabling.info.uhok', 'I have a message') # should print
     f.broadcast('some.other.topic', 'This should not print') # should not print
+    # Second round to ensure everyone gets the message
+    def super_sub(node):
+        def subscriber(msg):
+            print('{} got a message from {}:\n\t{}'.format(
+                node, msg.sender, msg.message))
+        return subscriber
+
+    a.subscribers.clear()
+    a.subscribe('', super_sub(a))
+    b.subscribe('', super_sub(b))
+    c.subscribe('', super_sub(c))
+    d.subscribe('', super_sub(d))
+    e.subscribe('', super_sub(e))
+    f.subscribe('', super_sub(f))
+    g.subscribe('', super_sub(g))
+    g.broadcast('big.topic', 'I heard this!')
+
 
 
 def main():
@@ -280,10 +302,8 @@ def main():
     chassis.attachments['A'][0].attach(gun.attachment)
     # Ok now the gun is attached... let's fire the gun
     terminal.broadcast('gun.fire', {'times': 1})
-    
+
 
 
 if __name__ == '__main__':
     main()
-
-

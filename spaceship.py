@@ -55,8 +55,13 @@ class Bus:
         return path
 
     def _push(self, msg):
-        '''Push a message to a parent and send it to any interested
-        subscribers
+        '''Rebroadcast to parents and children and notify any
+        interested subscribers. This method is called by others.
+
+        Rules:
+        1. Only send to a parent if you're a prefix of the sender
+        2. Only send to children who are not a prefix of the sender
+
         '''
         #send to subscribers
         for topic_filter, subscriber in self.subscribers.items():

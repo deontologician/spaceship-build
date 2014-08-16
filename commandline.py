@@ -3,6 +3,7 @@
 import cmd
 import shlex
 import spaceship
+from inventory import Inventory
 
 
 class SpaceshipCommand(cmd.Cmd):
@@ -12,6 +13,7 @@ class SpaceshipCommand(cmd.Cmd):
 
     def __init__(self, busname):
         self.bus = spaceship.Bus(busname)
+        self.inventory = Inventory()
     
     #----Spaceship Commands
     def do_broadcast(self, arg):
@@ -22,3 +24,4 @@ class SpaceshipCommand(cmd.Cmd):
     def do_subscribe(self, topic_key):
         'Subscribe to message using the topic key, they will be visiable in the console: SUBSCRIBE DAMAGEREPORT'
         self.bus.subscribe(topic_key, spaceship.basic_subscriber)
+

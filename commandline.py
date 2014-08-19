@@ -1,5 +1,6 @@
 '''This is the commandline'''
 
+import sys
 import cmd
 import shlex
 import spaceship
@@ -14,14 +15,25 @@ class SpaceshipCommand(cmd.Cmd):
     def __init__(self, busname):
         self.bus = spaceship.Bus(busname)
         self.inventory = Inventory()
+        super().__init__()
     
     #----Spaceship Commands
     def do_broadcast(self, arg):
-        'Broadcast message from terminal to attached Buses: BROADCAST FIRE'
+        '''Broadcast message from terminal to attached Buses:
+
+        > broadcast guns.all fire!
+        > broadcast system.report 'Everything nominal'
+        '''
         topic, message, *_ = shlex.split(arg)
         self.bus.broadcast(topic, message)
 
-    def do_subscribe(self, topic_key):
-        'Subscribe to message using the topic key, they will be visiable in the console: SUBSCRIBE DAMAGEREPORT'
-        self.bus.subscribe(topic_key, spaceship.basic_subscriber)
+    def do_subscribe(self, topic_key=''):
+        '''Subscribe to message using the topic key, they will be
+        visible in the console. If no argument given, all topics are
+        subscribed to.
 
+        > subscribe damage.report
+        > subscribe guns
+        > subscribe
+        '''
+        self.bus.subscribe(topic_key, spaceship.basic_subscriber)

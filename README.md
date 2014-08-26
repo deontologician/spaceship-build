@@ -2,6 +2,14 @@
 
 The idea of this game is that you build a spaceship piece by piece. This involves making engineering tradeoffs and doing testing to determine if the spaceship will be spaceworthy and able to handle a fight.
 
+## How to run the game
+
+```bash
+$ python spaceship.py
+```
+
+## Concepts
+
 Things you may have to consider:
 
 * Do I have a large enough power core to supply power to all of my spaceship's components?

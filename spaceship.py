@@ -1,8 +1,9 @@
-import cmd
 import uuid
 import pathlib
 from collections import namedtuple
 from io import StringIO
+
+import commandline
 
 
 BusMessage = namedtuple('BusMessage', 'topic message sender size')
@@ -293,7 +294,7 @@ def bus_test():
 
 
 
-def main():
+def test():
     terminal = Terminal()
     chassis = BasicChassis()
     terminal.connect(chassis.bus)
@@ -308,7 +309,9 @@ def main():
     # Ok now the gun is attached... let's fire the gun
     terminal.broadcast('gun.fire', {'times': 1})
 
-
+def main():
+    cmd = commandline.SpaceshipCommand('spaceship-terminal')
+    cmd.cmdloop()
 
 if __name__ == '__main__':
     main()

@@ -4,6 +4,7 @@ import sys
 import cmd
 import shlex
 import spaceship
+import random
 from inventory import Inventory
 
 
@@ -16,6 +17,16 @@ class SpaceshipCommand(cmd.Cmd):
         self.bus = spaceship.Bus(busname)
         self.inventory = Inventory()
         super().__init__()
+
+    def do_exit(self, _):
+        '''Exits the game'''
+        print(random.choice([
+            'So long!',
+            'Toodles!',
+            'Sayonara!',
+            'Best of luck!',
+            "Don't leave!"]))
+        return True
     
     #----Spaceship Commands
     def do_broadcast(self, arg):

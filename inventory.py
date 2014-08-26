@@ -1,6 +1,5 @@
-'''Inventory'''
+'''Player Inventory'''
 
-import spaceship
 
 class Inventory:
     '''This is the inventory. You may store and retrieve items.'''

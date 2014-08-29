@@ -6,7 +6,7 @@ import shlex
 import spaceship
 import random
 from inventory import Inventory
-
+from shop import Shop
 
 class SpaceshipCommand(cmd.Cmd):
     intro = 'Welcome to Spaceship Build'
@@ -16,8 +16,9 @@ class SpaceshipCommand(cmd.Cmd):
     def __init__(self, busname):
         self.bus = spaceship.Bus(busname)
         self.inventory = Inventory()
+        self.shop = Shop()
         super().__init__()
-
+        
     def do_exit(self, _):
         '''Exits the game'''
         print(random.choice([
@@ -38,6 +39,16 @@ class SpaceshipCommand(cmd.Cmd):
         topic, message, *_ = shlex.split(arg)
         self.bus.broadcast(topic, message)
 
+    def do_buy (self, type_name):
+        '''This purchases an item from the shop and puts it into the player's inventory
+        >buy raygun
+        raygun purchased and added to inventory.
+        '''
+        item = self.shop.buy(type_name)
+        self.inventory.store(item)
+        print(item, "purchased and added to inventory.")
+       
+        
     def do_subscribe(self, topic_key=''):
         '''Subscribe to message using the topic key, they will be
         visible in the console. If no argument given, all topics are

@@ -6,15 +6,16 @@ import shlex
 import spaceship
 import random
 from inventory import Inventory
+from components import Bus
 from shop import Shop
+
 
 class SpaceshipCommand(cmd.Cmd):
     intro = 'Welcome to Spaceship Build'
     prompt = '> '
-    file = None
 
-    def __init__(self, busname):
-        self.bus = spaceship.Bus(busname)
+    def __init__(self):
+        self.bus = Bus('root')
         self.inventory = Inventory()
         self.shop = Shop()
         super().__init__()
@@ -32,6 +33,7 @@ class SpaceshipCommand(cmd.Cmd):
     def do_EOF(self, arg):
         '''Handles Ctrl+D'''
         return self.do_exit(arg)
+
     
     #----Spaceship Commands
     def do_broadcast(self, arg):

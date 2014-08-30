@@ -6,13 +6,14 @@ class Shop:
     def __init__(self):
         self._inv = {}
         
-    def add_to_inventory(self, type_name, item_type):
-        '''Adds a new item type to the inventory'''
-        self._inv[type_name] = item_type
+    def add_to_inventory(self, item_type):
+        '''Adds a new item type to the shop inventory'''
+        self._inv[item_type.type_name] = item_type
 
     def buy(self, type_name):
-        '''buy an item from the store'''
-        return self._inv[type_name]()
+        '''Buy an item from the store'''
+        itemclass = self._inv.get(type_name)
+        return itemclass if itemclass is None else itemclass()
 
 
 if __name__ == '__main__':

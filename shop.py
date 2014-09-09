@@ -8,7 +8,7 @@ class Shop:
         
     def add_to_inventory(self, item_type):
         '''Adds a new item type to the shop inventory'''
-        self._inv[item_type.type_name] = item_type
+        self._inv[item_type.shop_name] = item_type
 
     def buy(self, type_name):
         '''Buy an item from the store'''

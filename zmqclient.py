@@ -5,13 +5,9 @@ import zmq
 import msgpack
 from common import fprint
 
-DEFAULT_PORT = 6969
+from proto import Proto
 
-class Proto(enum.Enum):
-    PROTOCOL_VERSION = 1
-    HELLO = 1
-    LOGIN = 2
-    LOGIN_FAILED = 3
+DEFAULT_PORT = 6969
 
 class Connection:
     def __init__(self, hostname='localhost', port=DEFAULT_PORT):

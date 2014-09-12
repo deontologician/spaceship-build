@@ -1,18 +1,17 @@
 import zmq
+import msgpack
 
-def welcome(socket):
-    width = 60
-    banner = '\n'.join([
-        '+' * width,
-        'Welcome to SpaceShip build!'.center(width, '+'),
-        '+' * width,
-        'Right now all this server does is echo your input a single time!',
-        '',
-        'Type something now to try it out...',
-    ])
+BANNER = '\n'.join([
+    '+' * width,
+    'Welcome to SpaceShip build!'.center(width, '+'),
+    '+' * width,
+])
 
-    socket.send_string(banner)
+DEFAULT_PORT = 6969
 
+class Connection:
+    def __init__(self, bind_port=DEFAULT_PORT):
+        
 
 def main(port):
     context = zmq.Context()

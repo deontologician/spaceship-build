@@ -1,4 +1,5 @@
 '''Player Inventory'''
+from collections import Counter
 
 
 class Inventory:
@@ -17,4 +18,17 @@ class Inventory:
 
     def destroy(self, item_name):
         ''' Destroys an item from the inventory'''
-        del self._inv[item_name]
+        try:
+            del self._inv[item_name]
+            return True
+        except KeyError:
+            return False
+
+    def contents(self):
+        ''' Returns the full contents of the inventory'''
+        return list(self._inv.keys())
+
+    def summary_contents(self):
+        '''Returns the summary contents of the inventory'''
+        classes = map(type, list(self._inv.values()))
+        return Counter(classes)

@@ -26,7 +26,17 @@ class SpaceshipCommand(cmd.Cmd):
             'So long!',
             'Toodles!',
             'Sayonara!',
+            'Bye',
+            'Farewell',
+            'Take care',
+            'Goodbye',
+            'Till next time',
+            'Later',
             'Best of luck!',
+            'Peace Out!',
+            'Adios',
+            'Ciao!',
+            'Au revoir',
             "Don't leave!"]))
         return True
 
@@ -71,3 +81,10 @@ class SpaceshipCommand(cmd.Cmd):
         > subscribe
         '''
         self.bus.subscribe(topic_key, spaceship.basic_subscriber)
+
+    def do_inv(self, verbose):
+        ''' Prints full inventory'''
+        if verbose == '-v':
+            print(self.inventory.contents())
+        else:
+            print(self.inventory.summary_contents())

@@ -18,7 +18,11 @@ class Inventory:
 
     def destroy(self, item_name):
         ''' Destroys an item from the inventory'''
-        del self._inv[item_name]
+        try:
+            del self._inv[item_name]
+            return True
+        except KeyError:
+            return False
 
     def contents(self):
         ''' Returns the full contents of the inventory'''

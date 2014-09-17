@@ -2,3 +2,8 @@ __pycache__
 *.pyc
 *.sublime-project
 .#*
+*.egg-info/
+*.key
+*.key_secret
+private_keys/
+public_keys/

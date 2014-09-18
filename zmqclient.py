@@ -4,6 +4,7 @@ import os.path
 import os
 from pathlib import Path
 import configparser
+from collections import OrderedDict
 
 import zmq
 from zmq.eventloop import ioloop, zmqstream
@@ -14,15 +15,13 @@ from common import fprint
 
 DEFAULT_PORT = 6969
 
-class MegaConnection:
-    def __init__(
-            self, secret_file, server_public_key, host, port=DEFAULT_PORT):
-        self.server_address = 'tcp://{}:{}'.format(host, port)
-        self._socket = zmq.Context.instance().socket(zmq.REQ)
-        public_key, private_key = zmq.auth.load_certificate(secret_file)
-        self._socket.curve_secretkey = private_key
-        self._socket.curve_publickey = public_key
-        self._socket.curve_serverkey = server_public_key
+class ClientConnection:
+    def __init__(self, config, socket_type=zmq.REQ):
+        self._socket = zmq.Context.instance().socket(socket_type)
+        self._socket.curve_secretkey = config.private_key
+        self._socket.curve_publickey = config.public_key
+        self._socket.curve_serverkey = config['server']\
+                                       ['public_key'].decode('ascii')
         self.stream = None
 
     @staticmethod
@@ -34,29 +33,38 @@ class MegaConnection:
             return function(msg)
         return _wrapper
 
-    def connect(self, msg_received):
+    def connect(self, recv_callback):
         '''Takes a callback for when messages are received on the
         socket'''
         self._socket.connect(self.server_address)
         self.stream = zmqstream.ZMQStream(self._socket)
-        self.stream.on_recv(self.deserialize(msg_received))
+        self.stream.on_recv(self.deserialize(recv_callback))
 
     def send(self, msg):
         '''Sends a message on the socket'''
         packed = blosc.compress(msgpack.dumps(msg), typesize=8)
         self.stream.send(packed)
 
+
 class Configuration:
     '''Manages app configuration directory. One of these should be
     created per run of the server or the client
     '''
 
+    DEFAULTS = {
+        'server': {
+            'address': 'tcp://localhost:6969', 
+            'public_key': 'F:<Z/Ojtug9Xwyz)=b7IeJyT9cPwi&M$M.h}+^kQ'
+        },
+    }
+    
     def __init__(self, conn_type):
         self.conn_type = conn_type
         self.get_config_dir()
         self.get_key_dirs()
         self.get_config_file()
-        self.create_keys()
+        self.get_keys()
+        self.save()
 
     def get_config_dir(self):
         '''Returns the config dir. Creates it if necessary'''
@@ -80,12 +88,17 @@ class Configuration:
 
     def get_config_file(self):
         '''Gets and creates the config file'''
-        self.config_file = self.config_dir / 'config.conf'
+        self.config_file = self.config_dir / 'spaceship.conf'
         self.config_file.touch(exist_ok=True)
         self.config = configparser.ConfigParser()
+        self.configurate(self.config)
         self.config.read(self.config_file.as_posix())
 
-    def create_keys(self):
+    def configurate(self, config):
+        for section, keys in self.DEFAULTS.items():
+            config[section] = keys
+
+    def get_keys(self):
         '''Create server keys if needed'''
         pub_key_file = self.public_key_dir / (self.conn_type + '.key')
         priv_key_file = self.private_key_dir / (self.conn_type + '.key_secret')
@@ -96,8 +109,9 @@ class Configuration:
             # if one is missing
             Path(pub_path).replace(pub_key_file)
             Path(priv_path).replace(priv_key_file)
-        self.public_key = pub_key_file.open('b').read()
-        self.private_key = priv_key_file.open('b').read()
+        self.public_key, self.private_key = zmq.auth.load_certificate(
+            priv_key_file.as_posix())
+        self.server_pub_key_file = self.public_key_dir / 'server.key'
 
     def __getitem__(self, key):
         return self.config[key]

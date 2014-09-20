@@ -15,30 +15,94 @@ from common import fprint
 
 DEFAULT_PORT = 6969
 
+
 class ClientConnection:
-    def __init__(self, config, socket_type=zmq.REQ):
-        self._socket = zmq.Context.instance().socket(socket_type)
-        self._socket.curve_secretkey = config.private_key
-        self._socket.curve_publickey = config.public_key
-        self._socket.curve_serverkey = config['server']\
-                                       ['public_key'].decode('ascii')
+    def __init__(self,
+                 private_key,
+                 public_key,
+                 server_key,
+                 server_address,
+                 socket_type=zmq.DEALER,
+                 context=None):
+        self.context = context or zmq.Context.instance()
+        self.socket = self.context.socket(socket_type)
+        self.socket.curve_secretkey = private_key
+        self.socket.curve_publickey = public_key
+        self.socket.curve_serverkey = server_key
+        self.server_address = server_address
         self.stream = None
 
     @staticmethod
-    def deserialize(function):
-        '''This is a decorator for recv callbacks. It uncompresses and
-        deserializes the message'''
-        def _wrapper(raw_msg):
-            msg = msgpack.loads(blosc.decompress(raw_msg))
-            return function(msg)
-        return _wrapper
+    def from_socket(socket):
+        return ClientConnection(
+            socket.curve_secretkey,
+            socket.curve_publickey,
+            socket.curve_serverkey,
+            socket_type=socket.socket_type,
+            context=socket.context,
+        )
 
     def connect(self, recv_callback):
         '''Takes a callback for when messages are received on the
         socket'''
-        self._socket.connect(self.server_address)
-        self.stream = zmqstream.ZMQStream(self._socket)
-        self.stream.on_recv(self.deserialize(recv_callback))
+
+        def deserialize(function):
+            def _wrapper(raw_msg):
+                msg = msgpack.loads(blosc.decompress(raw_msg.decode('utf-8')))
+                return function(msg)
+            return _wrapper
+
+        self.socket.connect(self.server_address)
+        self.stream = zmqstream.ZMQStream(self.socket)
+        self.stream.on_recv(deserialize(recv_callback))
+
+    def send(self, msg):
+        '''Sends a message on the socket'''
+        packed = blosc.compress(msgpack.dumps(msg), typesize=8)
+        self.stream.send(packed)
+
+
+class ServerConnection:
+    def __init__(self,
+                 private_key=None,
+                 public_key=None,
+                 endpoint=None,
+                 socket_type=zmq.ROUTER,
+                 context=None,
+                 socket=None,
+             ):
+        if socket is not None:
+            import ipdb
+            ipdb.set_trace()
+            self.socket = socket
+            self.context = socket.context
+        else:
+            self.context = context or zmq.Context.instance()
+            self.socket = self.context.socket(socket_type)
+            self.socket.curve_secretkey = private_key
+            self.socket.curve_publickey = public_key
+            self.socket.curve_server = True
+        self.endpoint = endpoint
+
+    @staticmethod
+    def from_socket(socket):
+        return ServerConnection(socket=socket)
+
+    def listen(self, listen_callback):
+        '''Bind to the intended port and listen for connections. Pass
+        connections to the given callback'''
+
+        def deserialize(function):
+            def _wrapper(raw_server, raw_msg):
+                msg = msgpack.loads(blosc.decompress(raw_msg[1]))
+                server = ServerConnection.from_socket(raw_server)
+                return function(server, msg)
+            return _wrapper
+
+        self.socket.bind(self.endpoint)
+        stream = zmqstream.ZMQStream(self.socket)
+        stream.on_recv_stream(deserialize(listen_callback))
+        return stream
 
     def send(self, msg):
         '''Sends a message on the socket'''
@@ -53,15 +117,20 @@ class Configuration:
 
     DEFAULTS = {
         'server': {
-            'address': 'tcp://localhost:6969', 
-            'public_key': 'F:<Z/Ojtug9Xwyz)=b7IeJyT9cPwi&M$M.h}+^kQ'
+            'address': 'tcp://127.0.0.1:6969',
+            'public_key': 'ND5YqX!CEE/*HpT+IEPbt*cfb)IE}yrLH}0srv-E',
+            'bind_to': 'tcp://127.0.0.1:6969',
         },
     }
     
     def __init__(self, conn_type):
         self.conn_type = conn_type
+        self.config_dir = None
         self.get_config_dir()
+        self.public_key_dir = None
+        self.private_key_dir = None
         self.get_key_dirs()
+        self.config_file = None
         self.get_config_file()
         self.get_keys()
         self.save()

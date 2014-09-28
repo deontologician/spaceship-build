@@ -1,14 +1,15 @@
 
-import zmq
+import logging
+
 from zmq.auth.ioloop import IOLoopAuthenticator
-from zmq.eventloop import ioloop, zmqstream
+from zmq.eventloop import ioloop
 import zmqclient as ZC
 
 def test_connection():
     server_conf = ZC.Configuration('server')
     client_conf = ZC.Configuration('client')
-    client_context = zmq.Context()
-    server_context = zmq.Context()
+    client_context = ZC.SpaceContext()
+    server_context = ZC.SpaceContext()
     
     server = ZC.ServerConnection(
         server_conf.private_key,
@@ -17,9 +18,9 @@ def test_connection():
         endpoint='tcp://127.0.0.1:6969',
     )
 
-    def echo_server(server, msg):
-        print('Msg:', msg)
-        server.send({'hi': 'dude'})
+    def echo_server(send, msg):
+        print('Server got Msg:', msg)
+        send({'hi': 'dude'})
 
     client = ZC.ClientConnection(
         client_conf.private_key,
@@ -30,7 +31,8 @@ def test_connection():
     )
 
     def dumb_client(msg):
-        print('Msg:', msg)
+        print('Client got Msg:', msg)
+        ioloop.IOLoop.instance().stop()
 
     loop = server.listen(echo_server)
     client.connect(dumb_client)
@@ -45,4 +47,6 @@ def test_connection():
     ioloop.IOLoop.instance().start()
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG,
+                        format="[%(levelname)s] %(message)s")
     test_connection()

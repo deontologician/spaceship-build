@@ -15,6 +15,57 @@ from common import fprint
 
 DEFAULT_PORT = 6969
 
+def pack(obj):
+    '''Pack a simple object'''
+    return blosc.compress(msgpack.dumps(obj), typesize=8)
+
+def unpack(bytearray):
+    '''Unpack a bytearray to a simple object'''
+    return msgpack.loads(blosc.decompress(bytearray), encoding='utf-8')
+
+
+class SpaceSocket(zmq.Socket):
+    '''Subclass of socket that uses blosc and msgpack'''
+    def send_packed(self, obj, flags=0):
+        '''Send a packed object'''
+        self.send(pack(obj), flags=flags)
+
+    def recv_packed(self, flags=0):
+        '''Receive a packed object and unpack it'''
+        return unpack(self.recv(flags=flags))
+
+
+class SpaceContext(zmq.Context):
+    '''Subclass of Context that uses SpaceSockets'''
+
+    @property
+    def _socket_class(self):
+        return SpaceSocket
+
+
+class SpaceZMQStream(zmqstream.ZMQStream):
+    '''ZMQStream that has the ability to send packed objects'''
+    def send_packed(self, obj, flags=0, callback=None):
+        '''Sends a packed message'''
+        self.send(pack(obj), flags=flags, callback=callback)
+
+    def on_recv_packed(self, callback, copy=True):
+        '''The callback will receive an unpacked object'''
+        if callback is None:
+            self.stop_on_recv()
+        else:
+            self.on_recv(lambda msg: callback(unpack(msg[-1])), copy=copy)
+
+    def on_recv_packed_stream(self, callback, copy=True):
+        '''The callback will receive this stream and the unpacked object'''
+        if callback is None:
+            self.stop_on_recv()
+        else:
+            self.on_recv(lambda msg: callback(
+                lambda msg: self.send_packed(msg),
+                unpack(msg[-1])),
+                         copy=copy)
+
 
 class ClientConnection:
     def __init__(self,
@@ -24,7 +75,7 @@ class ClientConnection:
                  server_address,
                  socket_type=zmq.DEALER,
                  context=None):
-        self.context = context or zmq.Context.instance()
+        self.context = context or SpaceContext.instance()
         self.socket = self.context.socket(socket_type)
         self.socket.curve_secretkey = private_key
         self.socket.curve_publickey = public_key
@@ -32,34 +83,16 @@ class ClientConnection:
         self.server_address = server_address
         self.stream = None
 
-    @staticmethod
-    def from_socket(socket):
-        return ClientConnection(
-            socket.curve_secretkey,
-            socket.curve_publickey,
-            socket.curve_serverkey,
-            socket_type=socket.socket_type,
-            context=socket.context,
-        )
-
     def connect(self, recv_callback):
         '''Takes a callback for when messages are received on the
         socket'''
-
-        def deserialize(function):
-            def _wrapper(raw_msg):
-                msg = msgpack.loads(blosc.decompress(raw_msg.decode('utf-8')))
-                return function(msg)
-            return _wrapper
-
         self.socket.connect(self.server_address)
-        self.stream = zmqstream.ZMQStream(self.socket)
-        self.stream.on_recv(deserialize(recv_callback))
+        self.stream = SpaceZMQStream(self.socket)
+        self.stream.on_recv_packed(recv_callback)
 
     def send(self, msg):
         '''Sends a message on the socket'''
-        packed = blosc.compress(msgpack.dumps(msg), typesize=8)
-        self.stream.send(packed)
+        self.stream.send_packed(msg)
 
 
 class ServerConnection:
@@ -69,45 +102,26 @@ class ServerConnection:
                  endpoint=None,
                  socket_type=zmq.ROUTER,
                  context=None,
-                 socket=None,
              ):
-        if socket is not None:
-            import ipdb
-            ipdb.set_trace()
-            self.socket = socket
-            self.context = socket.context
-        else:
-            self.context = context or zmq.Context.instance()
-            self.socket = self.context.socket(socket_type)
-            self.socket.curve_secretkey = private_key
-            self.socket.curve_publickey = public_key
-            self.socket.curve_server = True
+        self.context = context or SpaceContext.instance()
+        self.socket = self.context.socket(socket_type)
+        self.socket.curve_secretkey = private_key
+        self.socket.curve_publickey = public_key
+        self.socket.curve_server = True
         self.endpoint = endpoint
-
-    @staticmethod
-    def from_socket(socket):
-        return ServerConnection(socket=socket)
 
     def listen(self, listen_callback):
         '''Bind to the intended port and listen for connections. Pass
         connections to the given callback'''
 
-        def deserialize(function):
-            def _wrapper(raw_server, raw_msg):
-                msg = msgpack.loads(blosc.decompress(raw_msg[1]))
-                server = ServerConnection.from_socket(raw_server)
-                return function(server, msg)
-            return _wrapper
-
         self.socket.bind(self.endpoint)
-        stream = zmqstream.ZMQStream(self.socket)
-        stream.on_recv_stream(deserialize(listen_callback))
+        stream = SpaceZMQStream(self.socket)
+        stream.on_recv_packed_stream(listen_callback)
         return stream
 
     def send(self, msg):
         '''Sends a message on the socket'''
-        packed = blosc.compress(msgpack.dumps(msg), typesize=8)
-        self.stream.send(packed)
+        self.stream.send_packed(msg)
 
 
 class Configuration:
@@ -191,19 +205,5 @@ class Configuration:
             self.config.write(cf)
 
 
-
-def main():
-    conn = MegaConnection()
-    fprint('Connecting to SpaceShip build server at {host} on port {port}',
-           port=conn.port, host=conn.hostname)
-    motd = conn.connect()['motd']
-    print(motd)
-
-    # Attempt to log in
-    username = input('email: ')
-    password = getpass.getpass()
-    login_response = conn.login(username, password)
-
-
 if __name__ == '__main__':
-    main()
+    pass

@@ -1,6 +1,7 @@
 '''Contains components and the component superclass'''
 
 import uuid
+import random
 
 import bus
 from common import caps_to_hyphens, letterer
@@ -46,3 +47,4 @@ class Component(metaclass=ComponentMeta):
             self.mass = 1
         self.id = str(uuid.uuid4())
         self.bus = bus.Bus(self.name)
+

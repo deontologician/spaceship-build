@@ -1,52 +1,52 @@
-from random import choice, randint, sample, shuffle, gauss
+from random import choice, randint, sample, shuffle, gauss, random
+import re
 from collections import namedtuple
 
 COMPANY_STEMS = [
     "arch",
+    ('atom', ['', 'i', 'ic']),
+    ('agis', ['']),
     "aur",
-    "ban",
+    ("ban", ['a', 'i', 'u',]),
     "bio",
-    "chron",
+    ("chron", ['a', 'i', '']),
     "col",
     "com",
     'deka',
-    'dev',
-    "drov",
     "gen",
-    "jov",
-    "kam",
-    "kang",
-    "mal",
-    "meta",
-    "mil",
-    "lun",
-    "nano",
-    "ner",
-    "ono",
-    "plex",
+    ("jov", ['a','i','ia']),
+    ("kang", ['u','a']),
+    ("mal", ['a', 'e', 'i']),
+    ("met", ['a']),
+    ("mil", ['a', 'io', 'i', 'li']),
+    ("lun", ['a', 'ar', 'i']),
+    ("nan", ['o', 'i']),
+    ("ner", ['']),
+    ("on", ['o', 'a', 'i', 'u']),
+    ("plex", ['i', 'a', '', 'o']),
     "prot",
-    "pur",
-    "secu",
-    "sky",
-    "sol",
+    ("pur", ['a', 'i', 'e']),
+    ("sec", ['u', 'ure']),
+    ("sk", ['y']),
+    ("sol", ['a','i']),
     "star",
-    "sun",
-    "tel",
-    "ter",
+    ("sun", ['']),
+    ("tel", ['e', 'a']),
+    ("ter", ['a', 'ra', 'ra ', 'i', 'u', 'o']),
     "tir",
-    "tok",
-    'ton',
+    ("tok", ['a', 'u', 'i']),
+    ('ton', ['i', 'a', 'u', 'o']),
     "tren",
-    "uni",
-    "verdu",
-    "weis",
+    ("un", ['i', 'a', 'e']),
+    ("verd", ['u', 'a', 'ant']),
+    ("w", ['eis', 'yl', 'y', 'ey', 'eyl']),
     "yut",
 ]
 
-COMPANY_TYPES_LONG = [
-    "Company",
-    "Corporation",
+PRE_TERMINALS = [
+    "Design",
     "Dynamics",
+    "Engineering",
     "Enterprises",
     "Foundation",
     "Galactic",
@@ -54,19 +54,25 @@ COMPANY_TYPES_LONG = [
     "Industries",
     "International",
     "Interplanetary",
+    "Laboratories",
+    "Limited",
+    "Manufacturing",
+    "Orbital",
+    "Products",
+    "Supply",
+    "Syndicate",
     "Universal",
     "Ventures",
-    "Laboratories",
-    "Syndicate",
 ]
 
-COMPANY_TYPES_SHORT = [
+TERMINALS = [
     "Co.",
     "Llc.",
     "Ltd.",
-    "GmbH",
     "Inc.",
     "Corp.",
+    "Company",
+    "Corporation",
 ]
 
 RARE_PREFIXES = [
@@ -74,34 +80,30 @@ RARE_PREFIXES = [
     'meta',
     'hyper',
     'itsu',
-]
-
-PREFIXES = [
-    'am',
-    'ano',
-    'a',
-    'e',
-    'i',
-    'o',
+    'astral',
+    'sub',
 ]
 
 JOINERS = [
     'a',
+    'e',
+    'i',
     'o',
     'u',
-    'i',
     ' ',
+    '',
 ]
 
 SUFFIXES = [
-    'agis',
     'al',
     'dyn',
     'ex',
+    'dev',
     'gen',
     'ogia',
     'hama',
     'hiko',
+    'hito',
     'ia',
     'ic',
     'ine',
@@ -117,8 +119,6 @@ SUFFIXES = [
     'land',
     'ani',
     'tor',
-    ' supply',
-    ' products',
 ]
 
 FIELDS = {
@@ -139,39 +139,102 @@ FIELDS = {
     'wiring': 1,
 }
 
-def company_name(stems, suffixes, long_types):
+class Name(str):
+    '''A string subclass that keeps track of its constituent parts'''
+    def __init__(self, piece=None):
+        self.pieces = [piece] if piece is not None else []
+
+    def __add__(self, other):
+        new = Name(super().__add__(other))
+        if hasattr(other, 'pieces'):
+            new.pieces = self.pieces + other.pieces
+        else:
+            new.pieces = self.pieces + [other]
+        return new
+
+    def title(self):
+        x = Name(super().title())
+        x.pieces = self.pieces[:]
+        return x
+
+
+def with_probability(x):
+    '''Returns true with probability x'''
+    return random() <= x
+
+def extract(stem):
+    '''Extract a stem and joiners'''
+    if isinstance(stem, tuple):
+        joiners = stem[1]
+        stem = stem[0]
+    else:
+        joiners = JOINERS
+        stem = stem
+    return stem, joiners
+
+def corp_name(stems=None, suffixes=None):
+    '''Creates the non-sensical part of the name'''
+    if stems is None:
+        stems = COMPANY_STEMS[:]
+        shuffle(stems)
+    if suffixes is None:
+        suffixes = SUFFIXES[:]
+        shuffle(suffixes)
+    name = Name()
+    first_stem = None
+    second_stem = None
+
+    if with_probability(1/16):
+        name += choice(RARE_PREFIXES)
+    first_stem, joiners = extract(stems.pop())
+    name += first_stem
+    if with_probability(1/3):
+        name += choice(joiners)
+        second_stem, joiners = extract(stems.pop())
+        name += second_stem
+    if len(name) <= 9:
+        name += choice(list(set(joiners) - {' '}))
+        name += suffixes.pop()
+    return normalize(name)
+
+def normalize(name):
+    '''Fixes several weirdnesses in final names'''
+
+    name_final = name\
+        .replace('ao', choice('ao'))\
+        .replace('uo', choice('uo'))\
+        .replace('aeo', 'o')\
+        .replace('ea', 'e a')\
+        .replace('oex', 'ex')\
+        .replace('ii', 'i')\
+        .replace('oo', 'o')\
+        .replace('aa', 'a')\
+        .replace('uu', 'u')\
+        .replace('hh', 'h')\
+        .replace('ee', 'e')\
+
+    ret = Name(name_final)
+    ret.pieces = name.pieces[:]
+    return ret
+
+def company_name(stems=None, suffixes=None, pre_terminals=None):
     '''Creates a random company name. Deletes items from stems and
     suffixes, so don't pass in the global versions or you'll quickly
     run out!
     '''
-    name = ''
-    used_stems = []
-    if not randint(0, 3):
-        if not randint(0, 3):
-            name += choice(RARE_PREFIXES)
-        else:
-            name += choice(PREFIXES)
-    used_stems.append(stems.pop())
-    name += used_stems[-1]
-    if not randint(0, 2):
-        if randint(0, 1) and name[-1] not in 'aeiouy':
-            # prevent the hawaiian problem
-            name += choice(JOINERS)
-        used_stems.append(stems.pop())
-        name += used_stems[-1]
-    if not randint(0, 2) or name in used_stems:
-        if name.endswith('v'):
-            name += choice(JOINERS + ['e'])
-        name += suffixes.pop()
+    if pre_terminals is None:
+        pre_terminals = PRE_TERMINALS[:]
+        shuffle(pre_terminals)
+    name = corp_name(stems, suffixes)
     name = name.title()
-    if randint(0, 1) and len(name) <= 7:
-        name += ' ' + long_types.pop()
-    elif randint(0, 1) and len(name) >= 7:
-        name += ' ' + choice(COMPANY_TYPES_SHORT)
+    if with_probability(1/2):
+        name += ' ' + choice(pre_terminals)
+    if with_probability(2/3):
+        name += ' ' + choice(TERMINALS)
     return name
 
 def buy_fields(name, field_markets):
-    total_points = max(round(gauss(6, 3)), 1)
+    total_points = max(round(gauss(6, 4)), 1)
     points = total_points
     fields = {}
     while points > 0 and field_markets:
@@ -192,12 +255,12 @@ def make_companies():
     '''Creates several companies'''
     stems = COMPANY_STEMS[:]
     suffixes = SUFFIXES[:]
-    long_types = COMPANY_TYPES_LONG[:]
+    pre_terminals = PRE_TERMINALS[:]
     shuffle(stems)
     shuffle(suffixes)
-    shuffle(long_types)
+    shuffle(pre_terminals)
     markets = {
-        'high-end': 3,
+        'high-end': 4,
         'mid-market': 2,
         'low-end': 1,
     }
@@ -206,17 +269,33 @@ def make_companies():
                      for market, mp in markets.items()}
     companies = []
     while field_markets:
-        name = company_name(stems, suffixes, long_types)
+        name = company_name(stems, suffixes, pre_terminals)
         fields = buy_fields(name, field_markets)
         companies.append(Company(name, fields))
     return companies
 
+def build_trie():
+    assoc = {}
+    while True:
+        try:
+            suggested = corp_name()
+            answer = input(suggested.title() + ' [y/N]: ')
+            if answer in ('Y','y','yes'):
+                if len(suggested.pieces) > 1:
+                    for fst, snd in zip(suggested.pieces[:-1], suggested.pieces[1:]):
+                        assoc[fst] = snd
+                else:
+                    assoc[fst] = ''
+
+        except KeyboardInterrupt:
+            break
+    return assoc
 
 if __name__ == '__main__':
     companies = make_companies()
     for company in companies:
         print(company.name)
-        for field, market in company.fields.items():
-            print('  ', market, field)
+        print('    ', company.name.pieces)
+        #for field, market in company.fields.items():
+        #    print('  ', market, field)
     print(len(companies), 'created')
-    

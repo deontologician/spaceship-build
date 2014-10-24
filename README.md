@@ -33,3 +33,20 @@ The idea of the game is to have you build the ship basically from scratch. You m
 4. Add some kind of graphical element (probably 2D)
 5. Implement the game portion, flying in space, repairing on the fly etc.
 6. Beyond: Multiplayer, fleets of ships battling, other improbable features...
+
+# Copyright
+
+This file is part of spaceship-build.
+
+spaceship-build is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+spaceship-build is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with spaceship-build.  If not, see <http://www.gnu.org/licenses/>.

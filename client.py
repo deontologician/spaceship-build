@@ -11,29 +11,30 @@ print('\nConnecting to SpaceShip build server at %s on port %s' % server_address
 sock.connect(server_address)
 
 # Need to add try for this later
-print('Connection successful!\n')
+print("Connection successful!"
+      "\nEnter \"/q\" to quit")
 
 # Checking buffer for any motd's
-welcome = sock.recv(1024)
+welcome = sock.recv(4096)
 print('%s' % welcome.decode("utf-8"))
 
-try:
+while True:
 
     # Prompt user, accept input, send to socket
     message = bytes(input('>> '), 'UTF-8')
-    print('\nSending >> "%s"' % message.decode("utf-8"))
-    sock.sendall(message)
+    sock.send(message)
 
-    # Look for the response
-    amount_received = 0
-    amount_expected = len(message)
+    # If the user inputs the escape sequence /q the socket closes cleanly
+    cmd = message.decode("utf-8")
+    cmd = cmd[:2]
+    #print('%s' % cmd)
 
-    while amount_received < amount_expected:
-        data = sock.recv(1024)
-        amount_received += len(data)
-        print('Received >> "%s"' % data.decode("utf-8"))
+    if cmd == '/q':
+        print("\nWe're quitting Bob.")
+        break
+    data = sock.recv(4096)
+    print('<others> %s' % data.decode("utf-8"))
 
-finally:
-    print('\nClosing connection...')
-    sock.close()
-    print('Connection closed!')
+print('\nClosing connection...')
+sock.close()
+print('Connection closed!')
